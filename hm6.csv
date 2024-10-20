@@ -1,0 +1,280 @@
+using System;
+
+public class ConfigurationManager{
+    private static ConfigurationManager _instance;
+    private static object _lock = new object();
+    private string[,] _settings;
+    
+    private ConfigurationManager(){
+        _settings = new string[10, 2];
+    }
+
+    public static ConfigurationManager GetInstance(){
+        if (_instance == null){
+            lock (_lock){
+                if (_instance == null){
+                    _instance = new ConfigurationManager();
+                }
+            }
+        }
+        return _instance;
+    }
+
+    public void SetSetting(string key, string value){
+        for (int i = 0; i < _settings.GetLength(0); i++){
+            if (_settings[i, 0] == null || _settings[i, 0] == key){
+                _settings[i, 0] = key;
+                _settings[i, 1] = value;
+                return;
+            }
+        }
+    }
+
+    public string GetSetting(string key){
+        for (int i = 0; i < _settings.GetLength(0); i++){
+            if (_settings[i, 0] == key){
+                return _settings[i, 1];
+            }
+        }
+        throw new Exception("Setting not found.");
+    }
+
+    public void LoadSettingsFromFile(string filePath){
+        
+        string[] lines = ReadFile(filePath);
+        foreach (var line in lines){
+            var parts = line.Split('=');
+            if (parts.Length == 2){
+                SetSetting(parts[0].Trim(), parts[1].Trim());
+            }
+        }
+    }
+
+    private string[] ReadFile(string filePath){
+        return new string[]{
+            "setting1=value1",
+            "setting2=value2"
+        };
+    }
+}
+
+public class Program{
+    public static void Main(string[] args){
+        ConfigurationManager config1 = ConfigurationManager.GetInstance();
+        config1.SetSetting("setting1", "value1");
+        config1.SetSetting("setting2", "value2");
+
+        ConfigurationManager config2 = ConfigurationManager.GetInstance();
+
+        System.Console.WriteLine(config1.GetSetting("setting1"));
+        System.Console.WriteLine(config2.GetSetting("setting2"));
+
+        System.Console.WriteLine(ReferenceEquals(config1, config2));
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+using System;
+
+public interface IReportBuilder{
+    void SetHeader(string header);
+    void SetContent(string content);
+    void SetFooter(string footer);
+    Report GetReport();
+}
+
+public class TextReportBuilder : IReportBuilder{
+    private Report _report = new Report();
+
+    public void SetHeader(string header){
+        _report.Header = header;
+    }
+
+    public void SetContent(string content){
+        _report.Content = content;
+    }
+
+    public void SetFooter(string footer){
+        _report.Footer = footer;
+    }
+
+    public Report GetReport(){
+        return _report;
+    }
+}
+
+public class HtmlReportBuilder : IReportBuilder{
+    private Report _report = new Report();
+
+    public void SetHeader(string header){
+        _report.Header = $"<h1>{header}</h1>";
+    }
+
+    public void SetContent(string content){
+        _report.Content = $"<p>{content}</p>";
+    }
+
+    public void SetFooter(string footer){
+        _report.Footer = $"<footer>{footer}</footer>";
+    }
+
+    public Report GetReport(){
+        return _report;
+    }
+}
+
+public class Report{
+    public string Header { get; set; }
+    public string Content { get; set; }
+    public string Footer { get; set; }
+
+    public void Display(){
+        System.Console.WriteLine(Header);
+        System.Console.WriteLine(Content);
+        System.Console.WriteLine(Footer);
+    }
+}
+
+public class ReportDirector{
+    public void ConstructReport(IReportBuilder builder){
+        builder.SetHeader("Отчет по проекту");
+        builder.SetContent("Содержимое отчета");
+        builder.SetFooter("Подвал отчета");
+    }
+}
+
+public class Program{
+    public static void Main(string[] args){
+        ReportDirector director = new ReportDirector();
+
+        IReportBuilder textBuilder = new TextReportBuilder();
+        director.ConstructReport(textBuilder);
+        Report textReport = textBuilder.GetReport();
+        System.Console.WriteLine("Текстовый отчет:");
+        textReport.Display();
+
+        System.Console.WriteLine();
+
+        IReportBuilder htmlBuilder = new HtmlReportBuilder();
+        director.ConstructReport(htmlBuilder);
+        Report htmlReport = htmlBuilder.GetReport();
+        System.Console.WriteLine("HTML-отчет:");
+        htmlReport.Display();
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+using System;
+
+public interface ICloneable{
+    object Clone();
+}
+
+public class Product : ICloneable{
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+    public int Quantity { get; set; }
+
+    public Product(string name, decimal price, int quantity){
+        Name = name;
+        Price = price;
+        Quantity = quantity;
+    }
+
+    public object Clone(){
+        return new Product(Name, Price, Quantity);
+    }
+}
+
+public class Discount : ICloneable{
+    public string Description { get; set; }
+    public decimal Amount { get; set; }
+
+    public Discount(string description, decimal amount){
+        Description = description;
+        Amount = amount;
+    }
+
+    public object Clone(){
+        return new Discount(Description, Amount);
+    }
+}
+
+public class Order : ICloneable{
+    public Product[] Products { get; set; }
+    public int ProductCount { get; private set; }
+    public decimal DeliveryCost { get; set; }
+    public Discount[] Discounts { get; set; }
+    public int DiscountCount { get; private set; }
+    public string PaymentMethod { get; set; }
+
+    public Order(decimal deliveryCost, string paymentMethod){
+        Products = new Product[10];
+        Discounts = new Discount[10];
+        ProductCount = 0;
+        DiscountCount = 0;
+        DeliveryCost = deliveryCost;
+        PaymentMethod = paymentMethod;
+    }
+
+    public void AddProduct(Product product){
+        if (ProductCount < Products.Length){
+            Products[ProductCount++] = product;
+        }
+    }
+
+    public void AddDiscount(Discount discount){
+        if (DiscountCount < Discounts.Length){
+            Discounts[DiscountCount++] = discount;
+        }
+    }
+
+    public object Clone(){
+        Order clonedOrder = new Order(DeliveryCost, PaymentMethod){
+            Products = new Product[ProductCount],
+            Discounts = new Discount[DiscountCount]
+        };
+
+        for (int i = 0; i < ProductCount; i++){
+            clonedOrder.Products[i] = (Product)Products[i].Clone();
+        }
+
+        for (int i = 0; i < DiscountCount; i++){
+            clonedOrder.Discounts[i] = (Discount)Discounts[i].Clone();
+        }
+
+        return clonedOrder;
+    }
+}
+
+public class Program{
+    public static void Main(string[] args){
+        Order originalOrder = new Order(10.00m, "Credit Card");
+        originalOrder.AddProduct(new Product("Laptop", 1200.00m, 1));
+        originalOrder.AddProduct(new Product("Mouse", 25.00m, 1));
+        originalOrder.AddDiscount(new Discount("Holiday Sale", 100.00m));
+
+        Order clonedOrder = (Order)originalOrder.Clone();
+
+        clonedOrder.DeliveryCost = 5.00m;
+        clonedOrder.AddProduct(new Product("Keyboard", 50.00m, 1));
+
+        Console.WriteLine("Оригинальный заказ:");
+        PrintOrder(originalOrder);
+        Console.WriteLine();
+
+        Console.WriteLine("Клонированный заказ:");
+        PrintOrder(clonedOrder);
+    }
+
+    public static void PrintOrder(Order order){
+        Console.WriteLine($"Метод оплаты: {order.PaymentMethod}");
+        Console.WriteLine($"Стоимость доставки: {order.DeliveryCost:C}");
+        Console.WriteLine("Товары:");
+        for (int i = 0; i < order.ProductCount; i++){
+            Console.WriteLine($"- {order.Products[i].Name}, Цена: {order.Products[i].Price:C}, Количество: {order.Products[i].Quantity}");
+        }
+        Console.WriteLine("Скидки:");
+        for (int i = 0; i < order.DiscountCount; i++){
+            Console.WriteLine($"- {order.Discounts[i].Description}, Сумма: {order.Discounts[i].Amount:C}");
+        }
+    }
+}
